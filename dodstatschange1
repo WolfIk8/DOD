@@ -1,0 +1,264 @@
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DraggablePanelGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Main Panel (compact)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.fromOffset(220, 160)
+mainFrame.Position = UDim2.new(0.5, -110, 0.5, -80)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Header
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 28)
+header.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+header.BorderSizePixel = 0
+header.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Parent = header
+title.Size = UDim2.new(1, -32, 1, 0)
+title.Position = UDim2.fromOffset(4,0)
+title.BackgroundTransparency = 1
+title.Text = "Player Settings"
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextColor3 = Color3.new(1,1,1)
+title.TextSize = 14
+
+-- Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Parent = header
+closeButton.Size = UDim2.fromOffset(24,24)
+closeButton.Position = UDim2.fromOffset(190,2)
+closeButton.Text = "X"
+closeButton.TextSize = 14
+closeButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
+closeButton.TextColor3 = Color3.new(1,1,1)
+
+-- Content
+local content = Instance.new("Frame")
+content.Parent = mainFrame
+content.Position = UDim2.fromOffset(0,28)
+content.Size = UDim2.new(1,0,1, -28)
+content.BackgroundTransparency = 1
+
+-- Function to create TextBox
+local function createTextBox(name, placeholder, y)
+    local box = Instance.new("TextBox")
+    box.Name = name
+    box.Parent = content
+    box.Size = UDim2.new(1, -16, 0, 24)
+    box.Position = UDim2.fromOffset(8, y)
+    box.PlaceholderText = placeholder
+    box.Text = ""
+    box.TextSize = 13
+    box.ClearTextOnFocus = false
+    box.TextEditable = true
+    box.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    box.TextColor3 = Color3.new(1,1,1)
+    return box
+end
+
+local maxStaminaBox = createTextBox("MaxStaminaTextBox","MaxStamina",8)
+local sprintSpeedBox = createTextBox("SprintSpeedTextBox","SprintSpeed",36)
+local walkSpeedBox = createTextBox("WalkSpeedTextBox","WalkSpeed",64)
+
+-- Apply / Stop button
+local applyButton = Instance.new("TextButton")
+applyButton.Parent = content
+applyButton.Size = UDim2.new(1, -16, 0, 26)
+applyButton.Position = UDim2.fromOffset(8,100)
+applyButton.Text = "Apply"
+applyButton.TextSize = 14
+applyButton.BackgroundColor3 = Color3.fromRGB(50,150,50)
+applyButton.TextColor3 = Color3.new(1,1,1)
+
+-- Monitoring variables
+local monitoring = false
+local monitoredModel = nil
+local targetValues = {}
+
+local function stopMonitoring()
+    monitoring = false
+    monitoredModel = nil
+    targetValues = {}
+    if mainFrame and mainFrame.Parent then
+        maxStaminaBox.TextEditable = true
+        sprintSpeedBox.TextEditable = true
+        walkSpeedBox.TextEditable = true
+        applyButton.Text = "Apply"
+    end
+end
+
+-- Apply / Stop functionality
+applyButton.MouseButton1Click:Connect(function()
+    if monitoring then
+        stopMonitoring()
+        return
+    end
+
+    local teamsFolder = workspace:WaitForChild("GameAssets"):WaitForChild("Teams")
+    local model = nil
+    local survivorFolder = teamsFolder:FindFirstChild("Survivor")
+    if survivorFolder then model = survivorFolder:FindFirstChild(player.Name) end
+    local killerFolder = teamsFolder:FindFirstChild("Killer")
+    if not model and killerFolder then model = killerFolder:FindFirstChild(player.Name) end
+    if not model then return end
+
+    targetValues = {}
+    local maxStaminaValue = tonumber(maxStaminaBox.Text)
+    local sprintSpeedValue = tonumber(sprintSpeedBox.Text)
+    local walkSpeedValue = tonumber(walkSpeedBox.Text)
+
+    if maxStaminaValue then targetValues.MaxStamina = maxStaminaValue; model:SetAttribute("MaxStamina", maxStaminaValue) end
+    if sprintSpeedValue then targetValues.SprintSpeed = sprintSpeedValue; model:SetAttribute("SprintSpeed", sprintSpeedValue) end
+    if walkSpeedValue then targetValues.WalkSpeed = walkSpeedValue; model:SetAttribute("WalkSpeed", walkSpeedValue) end
+
+    if next(targetValues) == nil then return end
+
+    monitoredModel = model
+    monitoring = true
+    maxStaminaBox.TextEditable = false
+    sprintSpeedBox.TextEditable = false
+    walkSpeedBox.TextEditable = false
+    applyButton.Text = "Stop"
+end)
+
+-- Heartbeat monitoring
+RunService.Heartbeat:Connect(function()
+    if monitoring and monitoredModel and monitoredModel.Parent then
+        local validParents = {
+            workspace.GameAssets.Teams:FindFirstChild("Survivor"),
+            workspace.GameAssets.Teams:FindFirstChild("Killer")
+        }
+        local stillValid = false
+        for _, p in pairs(validParents) do
+            if monitoredModel.Parent == p then stillValid = true; break end
+        end
+        if not stillValid then stopMonitoring(); return end
+
+        for attr, target in pairs(targetValues) do
+            local current = monitoredModel:GetAttribute(attr)
+            if current and current < target then
+                monitoredModel:SetAttribute(attr, target)
+            end
+        end
+    end
+end)
+
+-- Close button
+closeButton.MouseButton1Click:Connect(function()
+    stopMonitoring()
+    screenGui:Destroy()
+end)
+
+-- Drag panel
+do
+    local dragging = false
+    local dragInput, dragStart, startPos
+    local function update(input)
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+            dragInput = input
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    header.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then update(input) end
+    end)
+end
+
+-- Toggle button (FIXED CLICK + DRAG)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.fromOffset(65,25)
+toggleButton.Position = UDim2.fromOffset(50,50)
+toggleButton.Text = "Toggle"
+toggleButton.BackgroundColor3 = Color3.fromRGB(80,80,200)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Parent = screenGui
+toggleButton.AutoButtonColor = true
+
+local panelVisible = true
+
+local draggingToggle = false
+local dragStartToggle
+local startPosToggle
+local movedToggle = false
+local DRAG_THRESHOLD = 8 -- 🔥 ВАЖНО: больше, чем было
+
+toggleButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+	or input.UserInputType == Enum.UserInputType.Touch then
+
+		draggingToggle = true
+		dragStartToggle = input.Position
+		startPosToggle = toggleButton.Position
+		movedToggle = false
+
+		local connection
+		connection = input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				connection:Disconnect()
+				draggingToggle = false
+
+				-- ✅ КЛИК (если не было реального drag)
+				if not movedToggle then
+					panelVisible = not panelVisible
+					mainFrame.Visible = panelVisible
+				end
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not draggingToggle then return end
+
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+	or input.UserInputType == Enum.UserInputType.Touch then
+
+		local delta = input.Position - dragStartToggle
+
+		-- 🔥 Начинаем drag ТОЛЬКО если движение значительное
+		if delta.Magnitude >= DRAG_THRESHOLD then
+			movedToggle = true
+			toggleButton.Position = UDim2.new(
+				startPosToggle.X.Scale,
+				startPosToggle.X.Offset + delta.X,
+				startPosToggle.Y.Scale,
+				startPosToggle.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
