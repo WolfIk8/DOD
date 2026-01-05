@@ -1,0 +1,745 @@
+-- LocalScript
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+
+------------------------------------------------
+-- Folders
+------------------------------------------------
+local TeamsFolder = workspace:WaitForChild("GameAssets"):WaitForChild("Teams")
+local KillerFolder = TeamsFolder:WaitForChild("Killer")
+local SurvivorFolder = TeamsFolder:WaitForChild("Survivor")
+local OtherFolder = TeamsFolder:WaitForChild("Other")
+
+------------------------------------------------
+-- Flags
+------------------------------------------------
+local ESP_ENABLED = false
+local NAME_ENABLED = false
+local PLAYERNAME_ENABLED = false
+local HEALTH_ENABLED = false
+local ESP_KILLERS = false
+local ESP_SURVIVORS = false
+local ESP_OTHERS = false
+local showAbilities = false
+local SHOW_CURRENT_HEALTH_ONLY = false
+
+------------------------------------------------
+-- Storage
+------------------------------------------------
+local ESP_OBJECTS = {}
+local folderConnections = {}
+local abilityBillboards = {}
+local abilityConnections = {}
+local abilityFolderConn
+
+------------------------------------------------
+-- Constants
+------------------------------------------------
+local HIGHLIGHT_NAME = "Highlight703881"
+local BILLBOARD_NAME_NAME = "Name703881"
+local BILLBOARD_NAME_PLAYERNAME = "PlayerName703881"
+local BILLBOARD_NAME_HP = "Health703881"
+
+------------------------------------------------
+-- Offsets
+------------------------------------------------
+local offsets = {
+    name = 3,        -- ShowName над головой
+    playerName = 5.5,  -- ShowPlayerName чуть выше
+    health = 0,      -- Health в центре hrp
+    abilities = 8,    -- Abilities выше всех
+}
+
+------------------------------------------------
+-- REMOVE FOLDER
+------------------------------------------------
+local function removeFolder(folder)
+	for char, data in pairs(ESP_OBJECTS) do
+		if char.Parent == folder then
+			if data.highlight then data.highlight:Destroy() end
+			if data.nameGui then data.nameGui:Destroy() end
+			if data.playerNameGui then data.playerNameGui:Destroy() end
+			if data.hpGui then data.hpGui:Destroy() end
+			if data.hpConn then data.hpConn:Disconnect() end
+			ESP_OBJECTS[char] = nil
+		end
+	end
+end
+
+------------------------------------------------
+-- REMOVE ABILITIES
+------------------------------------------------
+local function removeAbilities()
+    for char, data in pairs(ESP_OBJECTS) do
+        if data.abilityGui then
+            data.abilityGui:Destroy()
+            data.abilityGui = nil
+        end
+    end
+
+    for _, conns in pairs(abilityConnections) do
+        for _, c in pairs(conns) do
+            c:Disconnect()
+        end
+    end
+
+    abilityConnections = {}
+    abilityBillboards = {}
+end
+
+------------------------------------------------
+-- Killer detection
+------------------------------------------------
+local KILLER_ANIMATIONS = {
+	Artful = { Copywrite = true, Implement = true },
+	Badware = { Bolt = true, Rift = true },
+	Pursuer = { Cleave = true, Howl = true },
+	Killdroid = { Deploy = true, Detonate = true },
+	Harken = { Immolate = true, CalmDown = true }
+}
+
+-----------------------------------------------
+local function getKillerName(char)
+	local anims = char:FindFirstChild("Animations")
+	if not anims then return "Killer" end
+	for killer, animList in pairs(KILLER_ANIMATIONS) do
+		for _, anim in ipairs(anims:GetChildren()) do
+			if animList[anim.Name] then
+				return killer
+			end
+		end
+	end
+	return "Killer"
+end
+
+local function getRootPart(model)
+    if not model or not model:IsA("Model") then
+        return nil
+    end
+
+    -- приоритет: HumanoidRootPart
+    local hrp = model:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        return hrp
+    end
+
+    -- запасной вариант: PrimaryPart
+    if model.PrimaryPart then
+        return model.PrimaryPart
+    end
+
+    return nil
+end
+
+------------------------------------------------
+-- CREATE ESP
+------------------------------------------------
+
+local function createESP(char)
+	if not char or not char.Parent then return end
+	if not ESP_OBJECTS[char] then ESP_OBJECTS[char] = {} end
+	local data = ESP_OBJECTS[char]
+
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+local rootPart = getRootPart(char)
+if not rootPart then return end
+
+	local folder = char.Parent
+	if folder == KillerFolder and not ESP_KILLERS then return end
+	if folder == SurvivorFolder and not ESP_SURVIVORS then return end
+	if folder == OtherFolder and not ESP_OTHERS then return end
+
+	-- Highlight
+	if ESP_ENABLED and not data.highlight then
+		local h = Instance.new("Highlight")
+		h.Name = HIGHLIGHT_NAME
+		h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		h.FillTransparency = 0.7
+		h.OutlineColor = Color3.new(1,1,1)
+		if folder == KillerFolder then
+			h.FillColor = Color3.fromRGB(255,0,0)
+		elseif folder == SurvivorFolder then
+			h.FillColor = Color3.fromRGB(0,255,0)
+		else
+			h.FillColor = Color3.fromRGB(255,170,0)
+		end
+		h.Parent = char
+		data.highlight = h
+	end
+
+	-- ShowName
+	if NAME_ENABLED and not data.nameGui then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = BILLBOARD_NAME_NAME
+		bb.Adornee = rootPart
+		bb.Size = UDim2.fromOffset(140,25)
+		bb.StudsOffset = Vector3.new(0, offsets.name, 0)
+		bb.AlwaysOnTop = true
+		bb.Parent = rootPart
+
+		local tl = Instance.new("TextLabel")
+		tl.Size = UDim2.fromScale(1,1)
+		tl.BackgroundTransparency = 1
+		tl.TextScaled = true
+		tl.Font = Enum.Font.SourceSansBold
+		tl.TextStrokeTransparency = 0
+		tl.TextColor3 = Color3.new(1,1,1)
+		tl.Parent = bb
+
+		if folder == SurvivorFolder then
+			tl.Text = "Civilian"
+		elseif folder == KillerFolder then
+			tl.Text = getKillerName(char)
+		else
+			tl.Text = char.Name
+		end
+
+		data.nameGui = bb
+	end
+
+	-- ShowPlayerName
+	if PLAYERNAME_ENABLED and not data.playerNameGui then
+		if folder == SurvivorFolder or folder == KillerFolder then
+			local bb = Instance.new("BillboardGui")
+			bb.Name = BILLBOARD_NAME_PLAYERNAME
+			bb.Adornee = rootPart
+			bb.Size = UDim2.fromOffset(140,25)
+			bb.StudsOffset = Vector3.new(0, offsets.playerName, 0)
+			bb.AlwaysOnTop = true
+			bb.Parent = rootPart
+
+			local tl = Instance.new("TextLabel")
+			tl.Size = UDim2.fromScale(1,1)
+			tl.BackgroundTransparency = 1
+			tl.TextScaled = true
+			tl.Font = Enum.Font.SourceSansBold
+			tl.TextStrokeTransparency = 0
+			tl.Parent = bb
+
+			tl.TextColor3 = folder == SurvivorFolder and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+			tl.Text = char.Name
+
+			data.playerNameGui = bb
+		end
+	end
+
+	-- Health
+if HEALTH_ENABLED and not data.hpGui and humanoid then
+    local bb = Instance.new("BillboardGui")
+    bb.Name = BILLBOARD_NAME_HP
+    bb.Adornee = rootPart
+    bb.Size = UDim2.fromOffset(140,25)
+    bb.StudsOffset = Vector3.new(0, offsets.health, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = rootPart
+
+    local tl = Instance.new("TextLabel")
+    tl.Size = UDim2.fromScale(1,1)
+    tl.BackgroundTransparency = 1
+    tl.TextScaled = true
+    tl.Font = Enum.Font.SourceSansBold
+    tl.TextStrokeTransparency = 0
+    tl.Parent = bb
+
+    local function update()
+        local maxHealth = humanoid.MaxHealth
+        if maxHealth <= 0 then return end
+
+        local p = humanoid.Health / maxHealth
+
+        if SHOW_CURRENT_HEALTH_ONLY then
+            tl.Text = math.floor(humanoid.Health)
+        else
+            tl.Text = math.floor(humanoid.Health).."/"..math.floor(maxHealth)
+        end
+
+        if p > 0.86 then
+            tl.TextColor3 = Color3.fromRGB(0,255,0)
+        elseif p > 0.72 then
+            tl.TextColor3 = Color3.fromRGB(145,255,0)
+        elseif p > 0.58 then
+            tl.TextColor3 = Color3.fromRGB(200,255,0)
+        elseif p > 0.43 then
+            tl.TextColor3 = Color3.fromRGB(255,255,0)
+        elseif p > 0.29 then
+            tl.TextColor3 = Color3.fromRGB(255,130,0)
+        elseif p > 0.14 then
+            tl.TextColor3 = Color3.fromRGB(255,55,0)
+        else
+            tl.TextColor3 = Color3.fromRGB(255,0,0)
+        end
+    end
+
+    update()
+    data.hpConn = humanoid.HealthChanged:Connect(update)
+    data.hpGui = bb
+end
+
+-- Обновление текста при переключении Show Current Health
+if data.hpGui and data.hpConn then
+    local tl = data.hpGui:FindFirstChildOfClass("TextLabel")
+    local humanoid = data.hpGui.Adornee.Parent:FindFirstChildOfClass("Humanoid")
+    if tl and humanoid then
+        update()
+    end
+end
+
+	-- ShowAbilities (только Survivors)
+	if showAbilities and folder == SurvivorFolder and not data.abilityGui then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "AbilityBillboard"
+		bb.Adornee = rootPart
+		bb.Size = UDim2.fromOffset(120,20) -- базовый маленький размер
+		bb.StudsOffset = Vector3.new(0, offsets.abilities, 0)
+		bb.AlwaysOnTop = true
+		bb.Parent = rootPart
+
+		local tl = Instance.new("TextLabel")
+		tl.Size = UDim2.fromScale(1,1)
+		tl.BackgroundTransparency = 1
+		tl.TextScaled = true
+		tl.Font = Enum.Font.SourceSansBold
+		tl.TextStrokeTransparency = 0
+		tl.TextColor3 = Color3.fromRGB(255,255,255)
+		tl.Parent = bb
+
+		local function updateText()
+			tl.Text = (char:GetAttribute("Ability1") or "")..", "..(char:GetAttribute("Ability2") or "")
+		end
+		updateText()
+
+		local conn1 = char:GetAttributeChangedSignal("Ability1"):Connect(updateText)
+		local conn2 = char:GetAttributeChangedSignal("Ability2"):Connect(updateText)
+		data.abilityGui = bb
+abilityConnections[char] = {conn1,conn2}
+abilityBillboards[char] = bb
+	end
+end
+
+------------------------------------------------
+-- WATCH FOLDERS
+------------------------------------------------
+local function watchFolder(folder)
+	table.insert(folderConnections,
+		folder.ChildAdded:Connect(function(m)
+			task.wait()
+			createESP(m)
+		end)
+	)
+end
+
+watchFolder(KillerFolder)
+watchFolder(SurvivorFolder)
+watchFolder(OtherFolder)
+
+------------------------------------------------
+-- HEARTBEAT (масштабирование по расстоянию)
+------------------------------------------------
+heartbeatConnection = RunService.Heartbeat:Connect(function()
+    for char, data in pairs(ESP_OBJECTS) do
+        if not char.Parent then
+            ESP_OBJECTS[char] = nil
+            continue
+        end
+
+        local rootPart = getRootPart(char)
+if rootPart then
+    local d = (camera.CFrame.Position - rootPart.Position).Magnitude
+            local s = math.clamp(20 / d, 0.45, 0.9)
+
+            if data.nameGui then data.nameGui.Size = UDim2.fromOffset(130*s,30*s) end
+            if data.hpGui then data.hpGui.Size = UDim2.fromOffset(130*s,30*s) end
+            if data.playerNameGui then data.playerNameGui.Size = UDim2.fromOffset(130*s,30*s) end
+        end
+
+        if ESP_ENABLED then
+            for _, n in ipairs({"Head","Torso","Left Arm","Right Arm","Left Leg","Right Leg"}) do
+                local p = char:FindFirstChild(n)
+                if p and p:IsA("BasePart") and p.Transparency >= 1 then
+                    p.Transparency = 0.99
+                end
+            end
+
+            for _, ch in ipairs(char:GetChildren()) do
+                if ch:IsA("Highlight") and ch.Name ~= HIGHLIGHT_NAME then
+                    ch:Destroy()
+                end
+            end
+        end
+    end
+
+    -- масштабирование ShowAbilities
+    for survivor, bb in pairs(abilityBillboards) do
+        if survivor.Parent and bb.Adornee then
+            local d = (camera.CFrame.Position - bb.Adornee.Position).Magnitude
+            local s = math.clamp(20 / d, 0.45, 0.9)
+            bb.Size = UDim2.fromOffset(130*s,30*s)
+        end
+    end
+end)
+
+------------------------------------------------
+-- Panel GUI
+------------------------------------------------
+local panelGui = Instance.new("ScreenGui")
+panelGui.Name = "ScreenGui8642"
+panelGui.ResetOnSpawn = false
+panelGui.Parent = playerGui
+
+local PANEL_WIDTH, PANEL_HEIGHT = 420,240
+local HEADER_HEIGHT = 30
+local BUTTON_SPACING = 10
+local BUTTON_OFFSET_TOP = 10
+
+local panel = Instance.new("Frame")
+panel.Size = UDim2.fromOffset(PANEL_WIDTH,PANEL_HEIGHT)
+panel.Position = UDim2.fromScale(0.3,0.3)
+panel.BackgroundColor3 = Color3.fromRGB(50,50,50)
+panel.BorderSizePixel = 0
+panel.Parent = panelGui
+
+-- Header
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1,0,0,HEADER_HEIGHT)
+header.BackgroundColor3 = Color3.fromRGB(30,30,30)
+header.Parent = panel
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1,-60,1,0)
+titleLabel.Position = UDim2.fromOffset(0,0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Control Panel"
+titleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextScaled = true
+titleLabel.Parent = header
+
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.fromOffset(30,30)
+closeButton.Position = UDim2.new(1,-30,0,0)
+closeButton.Text = "X"
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.TextColor3 = Color3.fromRGB(255,255,255)
+closeButton.BackgroundColor3 = Color3.fromRGB(150,0,0)
+closeButton.Parent = header
+
+-- Body
+local body = Instance.new("Frame")
+body.Size = UDim2.new(1,0,1,-HEADER_HEIGHT)
+body.Position = UDim2.fromOffset(0,HEADER_HEIGHT)
+body.BackgroundTransparency = 1
+body.Parent = panel
+
+------------------------------------------------
+-- Toggle buttons (левая колонка)
+------------------------------------------------
+local function createToggleButton(text,x,y,callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.fromOffset(180,30)
+    btn.Position = UDim2.fromOffset(x,y)
+    btn.Text = text..": OFF"
+    btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextScaled = true
+    btn.Parent = body
+
+    btn.MouseButton1Click:Connect(function()
+        local status = callback()
+        btn.Text = text..": "..(status and "ON" or "OFF")
+    end)
+end
+
+local leftX, rightX = 20, 220
+local currentY = BUTTON_OFFSET_TOP
+
+-- Левые кнопки
+createToggleButton("ESP", leftX, currentY, function()
+    ESP_ENABLED = not ESP_ENABLED
+    if ESP_ENABLED then
+        for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
+            for _, obj in ipairs(folder:GetChildren()) do createESP(obj) end
+        end
+    else
+        removeFolder(KillerFolder)
+        removeFolder(SurvivorFolder)
+        removeFolder(OtherFolder)
+    end
+    return ESP_ENABLED
+end)
+currentY = currentY + 30 + BUTTON_SPACING
+
+-- ShowName
+createToggleButton("ShowName", leftX, currentY, function()
+    NAME_ENABLED = not NAME_ENABLED
+
+    for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
+        for _, char in ipairs(folder:GetChildren()) do
+            local data = ESP_OBJECTS[char] or {}
+            if NAME_ENABLED then
+                createESP(char)
+            else
+                if data.nameGui then
+                    data.nameGui:Destroy()
+                    data.nameGui = nil
+                end
+            end
+        end
+    end
+
+    return NAME_ENABLED
+end)
+currentY = currentY + 30 + BUTTON_SPACING
+
+-- ShowPlayerName
+createToggleButton("ShowPlayerName", leftX, currentY, function()
+    PLAYERNAME_ENABLED = not PLAYERNAME_ENABLED
+
+    for _, folder in ipairs({KillerFolder, SurvivorFolder}) do
+        for _, char in ipairs(folder:GetChildren()) do
+            local data = ESP_OBJECTS[char] or {}
+            if PLAYERNAME_ENABLED then
+                createESP(char)
+            else
+                if data.playerNameGui then
+                    data.playerNameGui:Destroy()
+                    data.playerNameGui = nil
+                end
+            end
+        end
+    end
+
+    return PLAYERNAME_ENABLED
+end)
+currentY = currentY + 30 + BUTTON_SPACING
+
+-- ShowHealth
+createToggleButton("ShowHealth", leftX, currentY, function()
+    HEALTH_ENABLED = not HEALTH_ENABLED
+
+    for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
+        for _, char in ipairs(folder:GetChildren()) do
+            local data = ESP_OBJECTS[char] or {}
+            if HEALTH_ENABLED then
+                createESP(char)
+            else
+                if data.hpGui then
+                    data.hpGui:Destroy()
+                    data.hpGui = nil
+                end
+                if data.hpConn then
+                    data.hpConn:Disconnect()
+                    data.hpConn = nil
+                end
+            end
+        end
+    end
+
+    return HEALTH_ENABLED
+end)
+currentY = currentY + 30 + BUTTON_SPACING
+
+createToggleButton("ShowAbilities", leftX, currentY, function()
+    showAbilities = not showAbilities
+
+    if showAbilities then
+        for _, survivor in ipairs(SurvivorFolder:GetChildren()) do
+            createESP(survivor)
+        end
+    else
+        removeAbilities()
+    end
+
+    return showAbilities
+end)
+
+-- Right column buttons
+currentY = BUTTON_OFFSET_TOP
+createToggleButton("ESP Killers", rightX, currentY, function()
+    ESP_KILLERS = not ESP_KILLERS
+    if not ESP_KILLERS then removeFolder(KillerFolder) end
+    return ESP_KILLERS
+end)
+currentY = currentY + 30 + BUTTON_SPACING
+
+createToggleButton("ESP Survivors", rightX, currentY, function()
+    ESP_SURVIVORS = not ESP_SURVIVORS
+    if not ESP_SURVIVORS then removeFolder(SurvivorFolder) end
+    return ESP_SURVIVORS
+end)
+currentY = currentY + 30 + BUTTON_SPACING
+
+createToggleButton("ESP Others", rightX, currentY, function()
+    ESP_OTHERS = not ESP_OTHERS
+    if not ESP_OTHERS then removeFolder(OtherFolder) end
+    return ESP_OTHERS
+end)
+
+currentY = currentY + 30 + BUTTON_SPACING
+
+createToggleButton("Show Current Health", rightX, currentY, function()
+    SHOW_CURRENT_HEALTH_ONLY = not SHOW_CURRENT_HEALTH_ONLY
+
+    -- принудительно обновляем все health GUI
+    for char, data in pairs(ESP_OBJECTS) do
+        if data.hpGui then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                -- просто вызываем обновление
+                humanoid.Health = humanoid.Health
+            end
+        end
+    end
+
+    return SHOW_CURRENT_HEALTH_ONLY
+end)
+
+------------------------------------------------
+-- Close button (полная очистка)
+------------------------------------------------
+closeButton.MouseButton1Click:Connect(function()
+    -- Очистка ESP/Abilities
+    ESP_ENABLED = false
+    NAME_ENABLED = false
+    PLAYERNAME_ENABLED = false
+    HEALTH_ENABLED = false
+    ESP_KILLERS = false
+    ESP_SURVIVORS = false
+    ESP_OTHERS = false
+    showAbilities = false
+
+    for char, data in pairs(ESP_OBJECTS) do
+        if data.highlight then data.highlight:Destroy() end
+        if data.nameGui then data.nameGui:Destroy() end
+        if data.playerNameGui then data.playerNameGui:Destroy() end
+        if data.hpGui then data.hpGui:Destroy() end
+        if data.hpConn then data.hpConn:Disconnect() end
+    end
+    ESP_OBJECTS = {}
+
+    for _, billboard in pairs(abilityBillboards) do if billboard then billboard:Destroy() end end
+    for _, conns in pairs(abilityConnections) do for _, c in pairs(conns) do c:Disconnect() end end
+    abilityBillboards, abilityConnections = {}, {}
+    if abilityFolderConn then abilityFolderConn:Disconnect(); abilityFolderConn=nil end
+
+    if heartbeatConnection then heartbeatConnection:Disconnect(); heartbeatConnection=nil end
+    for _, conn in ipairs(folderConnections) do conn:Disconnect() end
+    folderConnections = {}
+
+    -- Удаляем оба ScreenGui по имени
+    for _, guiName in ipairs({"ScreenGui8642", "ScreenGui2453"}) do
+        local gui = playerGui:FindFirstChild(guiName)
+        if gui then gui:Destroy() end
+    end
+end)
+
+------------------------------------------------
+-- Drag panel
+------------------------------------------------
+local draggingPanel = false
+local dragStart
+local startPos
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        draggingPanel = true
+        dragStart = input.Position
+        startPos = panel.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingPanel then
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+            local delta = input.Position - dragStart
+            panel.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        draggingPanel = false
+    end
+end)
+
+-- Toggle button (плавающая)
+local toggleGui = Instance.new("ScreenGui")
+toggleGui.Name = "ScreenGui2453"
+toggleGui.ResetOnSpawn = false
+toggleGui.Parent = playerGui
+
+-- Toggle button
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.fromOffset(65,25)
+toggleButton.Position = UDim2.fromScale(0.45,0.05) -- ближе к центру
+toggleButton.Text = "Toggle"
+toggleButton.TextScaled = true
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextColor3 = Color3.fromRGB(255,255,255)
+toggleButton.BackgroundColor3 = Color3.fromRGB(100,100,100)
+toggleButton.Parent = toggleGui
+toggleButton.ZIndex = 10
+
+local panelVisible = true
+local draggingToggle = false
+local dragStartToggle
+local startPosToggle
+local dragThreshold = 5 -- минимальное движение, чтобы считалось перетаскиванием
+local moved = false
+
+-- Начало взаимодействия
+toggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        draggingToggle = true
+        dragStartToggle = input.Position
+        startPosToggle = toggleButton.Position
+        moved = false
+    end
+end)
+
+-- Перемещение
+UserInputService.InputChanged:Connect(function(input)
+    if draggingToggle then
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+            local delta = input.Position - dragStartToggle
+            if math.abs(delta.X) > dragThreshold or math.abs(delta.Y) > dragThreshold then
+                moved = true
+            end
+            toggleButton.Position = UDim2.new(
+                startPosToggle.X.Scale,
+                startPosToggle.X.Offset + delta.X,
+                startPosToggle.Y.Scale,
+                startPosToggle.Y.Offset + delta.Y
+            )
+        end
+    end
+end)
+
+-- Конец взаимодействия
+toggleButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        draggingToggle = false
+        -- Если кнопка не двигалась сильно, считаем это кликом
+        if not moved then
+            panelVisible = not panelVisible
+            panel.Visible = panelVisible
+        end
+    end
+end)
