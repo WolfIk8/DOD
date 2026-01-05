@@ -50,9 +50,9 @@ local BILLBOARD_NAME_HP = "Health703881"
 ------------------------------------------------
 local offsets = {
     name = 3,        -- ShowName над головой
-    playerName = 5.5,  -- ShowPlayerName чуть выше
+    playerName = 5,  -- ShowPlayerName чуть выше
     health = 0,      -- Health в центре hrp
-    abilities = 8,    -- Abilities выше всех
+    abilities = 7,    -- Abilities выше всех
 }
 
 ------------------------------------------------
