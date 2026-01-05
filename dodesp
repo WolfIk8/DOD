@@ -141,6 +141,8 @@ end
 ------------------------------------------------
 
 local function createESP(char)
+    if not char or not char.Parent then return end
+    if char == player.Character then return end
 	if not char or not char.Parent then return end
 	if not ESP_OBJECTS[char] then ESP_OBJECTS[char] = {} end
 	local data = ESP_OBJECTS[char]
@@ -278,15 +280,6 @@ if HEALTH_ENABLED and not data.hpGui and humanoid then
     update()
     data.hpConn = humanoid.HealthChanged:Connect(update)
     data.hpGui = bb
-end
-
--- Обновление текста при переключении Show Current Health
-if data.hpGui and data.hpConn then
-    local tl = data.hpGui:FindFirstChildOfClass("TextLabel")
-    local humanoid = data.hpGui.Adornee.Parent:FindFirstChildOfClass("Humanoid")
-    if tl and humanoid then
-        update()
-    end
 end
 
 	-- ShowAbilities (только Survivors)
@@ -459,7 +452,7 @@ local leftX, rightX = 20, 220
 local currentY = BUTTON_OFFSET_TOP
 
 -- Левые кнопки
-createToggleButton("ESP", leftX, currentY, function()
+createToggleButton("Highlight", leftX, currentY, function()
     ESP_ENABLED = not ESP_ENABLED
     if ESP_ENABLED then
         for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
