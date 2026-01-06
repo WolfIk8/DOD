@@ -350,15 +350,22 @@ heartbeatConnection = RunService.Heartbeat:Connect(function()
         end
 
         local rootPart = getRootPart(char)
-if rootPart then
-    local d = (camera.CFrame.Position - rootPart.Position).Magnitude
+        if rootPart then
+            local d = (camera.CFrame.Position - rootPart.Position).Magnitude
             local s = math.clamp(20 / d, 0.45, 0.9)
 
-            if data.nameGui then data.nameGui.Size = UDim2.fromOffset(130*s,30*s) end
-            if data.hpGui then data.hpGui.Size = UDim2.fromOffset(130*s,30*s) end
-            if data.playerNameGui then data.playerNameGui.Size = UDim2.fromOffset(130*s,30*s) end
+            if data.nameGui then
+                data.nameGui.Size = UDim2.fromOffset(130 * s, 30 * s)
+            end
+            if data.hpGui then
+                data.hpGui.Size = UDim2.fromOffset(130 * s, 30 * s)
+            end
+            if data.playerNameGui then
+                data.playerNameGui.Size = UDim2.fromOffset(130 * s, 30 * s)
+            end
         end
 
+        -- прозрачность частей
         if ESP_ENABLED then
             for _, n in ipairs({"Head","Torso","Left Arm","Right Arm","Left Leg","Right Leg"}) do
                 local p = char:FindFirstChild(n)
@@ -366,22 +373,24 @@ if rootPart then
                     p.Transparency = 0.99
                 end
             end
+        end
 
-            if data.highlight then
-        for _, ch in ipairs(char:GetChildren()) do
-            if ch:IsA("Highlight") and ch ~= data.highlight then
-                ch:Destroy()
+        -- удаление чужих Highlight ТОЛЬКО если наш включён
+        if ESP_ENABLED and data.highlight then
+            for _, ch in ipairs(char:GetChildren()) do
+                if ch:IsA("Highlight") and ch ~= data.highlight then
+                    ch:Destroy()
+                end
             end
         end
     end
-end
 
     -- масштабирование ShowAbilities
     for survivor, bb in pairs(abilityBillboards) do
         if survivor.Parent and bb.Adornee then
             local d = (camera.CFrame.Position - bb.Adornee.Position).Magnitude
             local s = math.clamp(20 / d, 0.45, 0.9)
-            bb.Size = UDim2.fromOffset(130*s,30*s)
+            bb.Size = UDim2.fromOffset(120 * s, 22 * s)
         end
     end
 end)
