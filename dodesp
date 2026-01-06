@@ -71,6 +71,15 @@ local function removeFolder(folder)
 	end
 end
 
+local function removeHighlight(folder)
+    for char, data in pairs(ESP_OBJECTS) do
+        if char.Parent == folder and data.highlight then
+            data.highlight:Destroy()
+            data.highlight = nil
+        end
+    end
+end
+
 ------------------------------------------------
 -- REMOVE ABILITIES
 ------------------------------------------------
@@ -358,13 +367,14 @@ if rootPart then
                 end
             end
 
-            for _, ch in ipairs(char:GetChildren()) do
-                if ch:IsA("Highlight") and ch.Name ~= HIGHLIGHT_NAME then
-                    ch:Destroy()
-                end
+            if data.highlight then
+        for _, ch in ipairs(char:GetChildren()) do
+            if ch:IsA("Highlight") and ch ~= data.highlight then
+                ch:Destroy()
             end
         end
     end
+end
 
     -- масштабирование ShowAbilities
     for survivor, bb in pairs(abilityBillboards) do
@@ -454,18 +464,21 @@ local currentY = BUTTON_OFFSET_TOP
 -- Левые кнопки
 createToggleButton("Highlight", leftX, currentY, function()
     ESP_ENABLED = not ESP_ENABLED
+
     if ESP_ENABLED then
         for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
-            for _, obj in ipairs(folder:GetChildren()) do createESP(obj) end
+            for _, obj in ipairs(folder:GetChildren()) do
+                createESP(obj)
+            end
         end
     else
-        removeFolder(KillerFolder)
-        removeFolder(SurvivorFolder)
-        removeFolder(OtherFolder)
+        removeHighlight(KillerFolder)
+        removeHighlight(SurvivorFolder)
+        removeHighlight(OtherFolder)
     end
+
     return ESP_ENABLED
 end)
-currentY = currentY + 30 + BUTTON_SPACING
 
 -- ShowName
 createToggleButton("ShowName", leftX, currentY, function()
