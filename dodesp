@@ -479,6 +479,7 @@ createToggleButton("Highlight", leftX, currentY, function()
 
     return ESP_ENABLED
 end)
+currentY = currentY + 30 + BUTTON_SPACING
 
 -- ShowName
 createToggleButton("ShowName", leftX, currentY, function()
