@@ -1,0 +1,268 @@
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local LOG_PREFIX = "[AttributePanel]"
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DraggablePanelGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Main Panel
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.fromOffset(220, 160)
+mainFrame.Position = UDim2.new(0.5, -110, 0.5, -80)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Header
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 28)
+header.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+header.BorderSizePixel = 0
+header.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Parent = header
+title.Size = UDim2.new(1, -32, 1, 0)
+title.Position = UDim2.fromOffset(4,0)
+title.BackgroundTransparency = 1
+title.Text = "Player Settings"
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextColor3 = Color3.new(1,1,1)
+title.TextSize = 14
+
+-- Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Parent = header
+closeButton.Size = UDim2.fromOffset(24,24)
+closeButton.Position = UDim2.fromOffset(190,2)
+closeButton.Text = "X"
+closeButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
+closeButton.TextColor3 = Color3.new(1,1,1)
+
+-- Content
+local content = Instance.new("Frame")
+content.Parent = mainFrame
+content.Position = UDim2.fromOffset(0,28)
+content.Size = UDim2.new(1,0,1,-28)
+content.BackgroundTransparency = 1
+
+-- TextBox factory
+local function createTextBox(name, placeholder, y)
+	local box = Instance.new("TextBox")
+	box.Name = name
+	box.Parent = content
+	box.Size = UDim2.new(1, -16, 0, 24)
+	box.Position = UDim2.fromOffset(8, y)
+	box.PlaceholderText = placeholder
+	box.Text = ""
+	box.TextSize = 13
+	box.ClearTextOnFocus = false
+	box.TextEditable = true
+	box.BackgroundColor3 = Color3.fromRGB(60,60,60)
+	box.TextColor3 = Color3.new(1,1,1)
+	return box
+end
+
+local maxStaminaBox = createTextBox("MaxStamina","MaxStamina",8)
+local sprintSpeedBox = createTextBox("SprintSpeed","SprintSpeed",36)
+local walkSpeedBox = createTextBox("WalkSpeed","WalkSpeed",64)
+
+-- Apply / Stop
+local applyButton = Instance.new("TextButton")
+applyButton.Parent = content
+applyButton.Size = UDim2.new(1, -16, 0, 26)
+applyButton.Position = UDim2.fromOffset(8,100)
+applyButton.Text = "Apply"
+applyButton.BackgroundColor3 = Color3.fromRGB(50,150,50)
+applyButton.TextColor3 = Color3.new(1,1,1)
+
+-- Monitoring state
+local monitoring = false
+local monitoredModel = nil
+local targetValues = {}
+
+local function stopMonitoring(reason)
+	if monitoring then
+		print(LOG_PREFIX, "Слежка остановлена:", reason or "без причины")
+	end
+	monitoring = false
+	monitoredModel = nil
+	targetValues = {}
+	maxStaminaBox.TextEditable = true
+	sprintSpeedBox.TextEditable = true
+	walkSpeedBox.TextEditable = true
+	applyButton.Text = "Apply"
+end
+
+-- Apply / Stop logic
+applyButton.MouseButton1Click:Connect(function()
+	if monitoring then
+		stopMonitoring("нажата Stop")
+		return
+	end
+
+	print(LOG_PREFIX, "Поиск модели игрока:", player.Name)
+
+	local teams = workspace.GameAssets.Teams
+	local model =
+		(teams.Survivor and teams.Survivor:FindFirstChild(player.Name))
+		or
+		(teams.Killer and teams.Killer:FindFirstChild(player.Name))
+
+	if not model then
+		print(LOG_PREFIX, "Модель игрока НЕ найдена")
+		return
+	end
+
+	print(LOG_PREFIX, "Модель найдена:", model:GetFullName())
+
+	targetValues = {}
+
+	local ms = tonumber(maxStaminaBox.Text)
+	local ss = tonumber(sprintSpeedBox.Text)
+	local ws = tonumber(walkSpeedBox.Text)
+
+	if ms then
+		targetValues.MaxStamina = ms
+		model:SetAttribute("MaxStamina", ms)
+	end
+	if ss then
+		targetValues.SprintSpeed = ss
+		model:SetAttribute("SprintSpeed", ss)
+	end
+	if ws then
+		targetValues.WalkSpeed = ws
+		model:SetAttribute("WalkSpeed", ws)
+	end
+
+	if next(targetValues) == nil then
+		print(LOG_PREFIX, "Нет атрибутов для применения")
+		return
+	end
+
+	print(LOG_PREFIX, "Атрибуты применены:", targetValues)
+
+	monitoring = true
+	monitoredModel = model
+	maxStaminaBox.TextEditable = false
+	sprintSpeedBox.TextEditable = false
+	walkSpeedBox.TextEditable = false
+	applyButton.Text = "Stop"
+
+	print(LOG_PREFIX, "Слежка ЗАПУЩЕНА")
+end)
+
+-- Heartbeat monitoring
+RunService.Heartbeat:Connect(function()
+	if not (monitoring and monitoredModel and monitoredModel.Parent) then return end
+
+	local parent = monitoredModel.Parent
+	if parent ~= workspace.GameAssets.Teams.Survivor
+	and parent ~= workspace.GameAssets.Teams.Killer then
+		stopMonitoring("модель сменила родителя")
+		return
+	end
+
+	for attr, target in pairs(targetValues) do
+		local current = monitoredModel:GetAttribute(attr)
+		if current and current < target then
+			monitoredModel:SetAttribute(attr, target)
+			print(LOG_PREFIX,
+				"Атрибут восстановлен:",
+				attr,
+				current,
+				"→",
+				target
+			)
+		end
+	end
+end)
+
+-- Close
+closeButton.MouseButton1Click:Connect(function()
+	stopMonitoring("GUI закрыт")
+	screenGui:Destroy()
+end)
+
+-- Drag main panel
+do
+	local dragging, dragStart, startPos
+	header.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = mainFrame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStart
+			mainFrame.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+-- Toggle button
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.fromOffset(65,25)
+toggleButton.Position = UDim2.fromOffset(50,50)
+toggleButton.Text = "Toggle"
+toggleButton.BackgroundColor3 = Color3.fromRGB(80,80,200)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Parent = screenGui
+
+local panelVisible = true
+local draggingToggle = false
+local dragStartToggle
+local startPosToggle
+local movedToggle = false
+local DRAG_THRESHOLD = 8
+
+toggleButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingToggle = true
+		dragStartToggle = input.Position
+		startPosToggle = toggleButton.Position
+		movedToggle = false
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				draggingToggle = false
+				if not movedToggle then
+					panelVisible = not panelVisible
+					mainFrame.Visible = panelVisible
+				end
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if draggingToggle and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStartToggle
+		if delta.Magnitude >= DRAG_THRESHOLD then
+			movedToggle = true
+			toggleButton.Position = UDim2.new(
+				startPosToggle.X.Scale, startPosToggle.X.Offset + delta.X,
+				startPosToggle.Y.Scale, startPosToggle.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
