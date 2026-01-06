@@ -74,8 +74,7 @@ end
 local function removeHighlight(folder)
     for char, data in pairs(ESP_OBJECTS) do
         if char.Parent == folder and data.highlight then
-            data.highlight:Destroy()
-            data.highlight = nil
+            data.highlight.Enabled = false
         end
     end
 end
