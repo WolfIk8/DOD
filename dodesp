@@ -170,220 +170,195 @@ end
 -- CREATE ESP
 ------------------------------------------------
 
+
+------------------------------------------------
+-- Проверка и создание ESP/GUI для персонажа
+------------------------------------------------
 local function createESP(char)
     if not char or not char.Parent then return end
     if char == player.Character then return end
-	if not char or not char.Parent then return end
-	if not ESP_OBJECTS[char] then ESP_OBJECTS[char] = {} end
-	local data = ESP_OBJECTS[char]
 
-	local humanoid = char:FindFirstChildOfClass("Humanoid")
-local rootPart = getRootPart(char)
-if not rootPart then return end
+    local folder = char.Parent
+    local isKiller = folder == KillerFolder
+    local isSurvivor = folder == SurvivorFolder
+    local isOther = folder == OtherFolder
 
-	local folder = char.Parent
-	if folder == KillerFolder and not ESP_KILLERS then return end
-	if folder == SurvivorFolder and not ESP_SURVIVORS then return end
-	if folder == OtherFolder and not ESP_OTHERS then return end
+    -- Проверяем ESP для этой категории
+    if (isKiller and not ESP_KILLERS) or (isSurvivor and not ESP_SURVIVORS) or (isOther and not ESP_OTHERS) then
+        return
+    end
 
--- CREATE BODY ESP
-local function createBodyESP(char, color)
-    if char:FindFirstChild(BODY_ESP_FOLDER) then return end
+    -- Создаём запись в ESP_OBJECTS
+    if not ESP_OBJECTS[char] then ESP_OBJECTS[char] = {} end
+    local data = ESP_OBJECTS[char]
 
-    local folder = Instance.new("Folder")
-    folder.Name = BODY_ESP_FOLDER
-    folder.Parent = char
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local rootPart = getRootPart(char)
+    if not rootPart then return end
 
-    for _, partName in ipairs(R6_PARTS) do
-        local part = char:FindFirstChild(partName)
-        if part and part:IsA("BasePart") then
-            local box = Instance.new("BoxHandleAdornment")
-            box.Name = "ESPBox"
-            box.Adornee = part
-            box.Size = part.Size
-            box.AlwaysOnTop = true
-            box.ZIndex = 10
-            box.Transparency = 0.6
-            box.Color3 = color
-            box.Parent = folder
+    -- BodyESP
+    if ESP_ENABLED and not char:FindFirstChild(BODY_ESP_FOLDER) then
+        local color = isSurvivor and COLOR_SURVIVOR or isKiller and COLOR_KILLER or COLOR_OTHER
+        createBodyESP(char, color)
+    end
+
+    -- Name GUI
+    if NAME_ENABLED and not data.nameGui then
+        local bb = Instance.new("BillboardGui")
+        bb.Name = BILLBOARD_NAME_NAME
+        bb.Adornee = rootPart
+        bb.Size = UDim2.fromOffset(140,25)
+        bb.StudsOffset = Vector3.new(0, offsets.name, 0)
+        bb.AlwaysOnTop = true
+        bb.Parent = rootPart
+
+        local tl = Instance.new("TextLabel")
+        tl.Size = UDim2.fromScale(1,1)
+        tl.BackgroundTransparency = 1
+        tl.TextScaled = false
+        tl.TextSize = 10
+        tl.Font = Enum.Font.SourceSansBold
+        tl.TextStrokeTransparency = 0
+        tl.TextColor3 = Color3.new(1,1,1)
+        tl.Parent = bb
+
+        if isSurvivor then
+            tl.Text = "Civilian"
+        elseif isKiller then
+            tl.Text = getKillerName(char)
+        else
+            tl.Text = char.Name
+        end
+
+        data.nameGui = bb
+    end
+
+    -- PlayerName GUI
+    if PLAYERNAME_ENABLED and not data.playerNameGui then
+        if isSurvivor or isKiller then
+            local bb = Instance.new("BillboardGui")
+            bb.Name = BILLBOARD_NAME_PLAYERNAME
+            bb.Adornee = rootPart
+            bb.Size = UDim2.fromOffset(140,25)
+            bb.StudsOffset = Vector3.new(0, offsets.playerName, 0)
+            bb.AlwaysOnTop = true
+            bb.Parent = rootPart
+
+            local tl = Instance.new("TextLabel")
+            tl.Size = UDim2.fromScale(1,1)
+            tl.BackgroundTransparency = 1
+            tl.TextScaled = false
+            tl.TextSize = 10
+            tl.Font = Enum.Font.SourceSansBold
+            tl.TextStrokeTransparency = 0
+            tl.Parent = bb
+
+            tl.TextColor3 = isSurvivor and COLOR_SURVIVOR or COLOR_KILLER
+            tl.Text = char.Name
+
+            data.playerNameGui = bb
         end
     end
 
-    return folder
-end
+    -- Health GUI
+    if HEALTH_ENABLED and humanoid and not data.hpGui then
+        local bb = Instance.new("BillboardGui")
+        bb.Name = BILLBOARD_NAME_HP
+        bb.Adornee = rootPart
+        bb.Size = UDim2.fromOffset(140,25)
+        bb.StudsOffset = Vector3.new(0, offsets.health, 0)
+        bb.AlwaysOnTop = true
+        bb.Parent = rootPart
 
--- Определяем цвет для BodyESP
-local bodyColor
-if folder == SurvivorFolder then
-    bodyColor = COLOR_SURVIVOR
-elseif folder == KillerFolder then
-    bodyColor = COLOR_KILLER
-else
-    bodyColor = COLOR_OTHER
-end
+        local tl = Instance.new("TextLabel")
+        tl.Size = UDim2.fromScale(1,1)
+        tl.BackgroundTransparency = 1
+        tl.TextScaled = false
+        tl.TextSize = 15
+        tl.Font = Enum.Font.SourceSansBold
+        tl.TextStrokeTransparency = 0
+        tl.Parent = bb
 
--- Создаём BodyESP
-createBodyESP(char, bodyColor)
-
-	-- ShowName
-	if NAME_ENABLED and not data.nameGui then
-		local bb = Instance.new("BillboardGui")
-		bb.Name = BILLBOARD_NAME_NAME
-		bb.Adornee = rootPart
-		bb.Size = UDim2.fromOffset(140,25)
-		bb.StudsOffset = Vector3.new(0, offsets.name, 0)
-		bb.AlwaysOnTop = true
-		bb.Parent = rootPart
-
-		local tl = Instance.new("TextLabel")
-		tl.Size = UDim2.fromScale(1,1)
-		tl.BackgroundTransparency = 1
-		tl.TextScaled = false
-tl.TextSize = 10  -- или любой размер
-		tl.Font = Enum.Font.SourceSansBold
-		tl.TextStrokeTransparency = 0
-		tl.TextColor3 = Color3.new(1,1,1)
-		tl.Parent = bb
-
-		if folder == SurvivorFolder then
-			tl.Text = "Civilian"
-		elseif folder == KillerFolder then
-			tl.Text = getKillerName(char)
-		else
-			tl.Text = char.Name
-		end
-
-		data.nameGui = bb
-	end
-
-	-- ShowPlayerName
-	if PLAYERNAME_ENABLED and not data.playerNameGui then
-		if folder == SurvivorFolder or folder == KillerFolder then
-			local bb = Instance.new("BillboardGui")
-			bb.Name = BILLBOARD_NAME_PLAYERNAME
-			bb.Adornee = rootPart
-			bb.Size = UDim2.fromOffset(140,25)
-			bb.StudsOffset = Vector3.new(0, offsets.playerName, 0)
-			bb.AlwaysOnTop = true
-			bb.Parent = rootPart
-
-			local tl = Instance.new("TextLabel")
-			tl.Size = UDim2.fromScale(1,1)
-			tl.BackgroundTransparency = 1
-			tl.TextScaled = false
-tl.TextSize = 10  -- или любой размер
-			tl.Font = Enum.Font.SourceSansBold
-			tl.TextStrokeTransparency = 0
-			tl.Parent = bb
-
-			tl.TextColor3 = folder == SurvivorFolder and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-			tl.Text = char.Name
-
-			data.playerNameGui = bb
-		end
-	end
-
-	-- Health
-if HEALTH_ENABLED and not data.hpGui and humanoid then
-    local bb = Instance.new("BillboardGui")
-    bb.Name = BILLBOARD_NAME_HP
-    bb.Adornee = rootPart
-    bb.Size = UDim2.fromOffset(140,25)
-    bb.StudsOffset = Vector3.new(0, offsets.health, 0)
-    bb.AlwaysOnTop = true
-    bb.Parent = rootPart
-
-    local tl = Instance.new("TextLabel")
-    tl.Size = UDim2.fromScale(1,1)
-    tl.BackgroundTransparency = 1
-    tl.TextScaled = false
-tl.TextSize = 15  -- или любой размер
-    tl.Font = Enum.Font.SourceSansBold
-    tl.TextStrokeTransparency = 0
-    tl.Parent = bb
-
-    local function update()
-        local maxHealth = humanoid.MaxHealth
-        if maxHealth <= 0 then return end
-
-        local p = humanoid.Health / maxHealth
-
-        if SHOW_CURRENT_HEALTH_ONLY then
-            tl.Text = math.floor(humanoid.Health)
-        else
-            tl.Text = math.floor(humanoid.Health).."/"..math.floor(maxHealth)
+        local function update()
+            local maxHealth = humanoid.MaxHealth
+            if maxHealth <= 0 then return end
+            local p = humanoid.Health / maxHealth
+            if SHOW_CURRENT_HEALTH_ONLY then
+                tl.Text = math.floor(humanoid.Health)
+            else
+                tl.Text = math.floor(humanoid.Health).."/"..math.floor(maxHealth)
+            end
+            if p > 0.86 then
+                tl.TextColor3 = Color3.fromRGB(0,255,0)
+            elseif p > 0.72 then
+                tl.TextColor3 = Color3.fromRGB(145,255,0)
+            elseif p > 0.58 then
+                tl.TextColor3 = Color3.fromRGB(200,255,0)
+            elseif p > 0.43 then
+                tl.TextColor3 = Color3.fromRGB(255,255,0)
+            elseif p > 0.29 then
+                tl.TextColor3 = Color3.fromRGB(255,130,0)
+            elseif p > 0.14 then
+                tl.TextColor3 = Color3.fromRGB(255,55,0)
+            else
+                tl.TextColor3 = Color3.fromRGB(255,0,0)
+            end
         end
 
-        if p > 0.86 then
-            tl.TextColor3 = Color3.fromRGB(0,255,0)
-        elseif p > 0.72 then
-            tl.TextColor3 = Color3.fromRGB(145,255,0)
-        elseif p > 0.58 then
-            tl.TextColor3 = Color3.fromRGB(200,255,0)
-        elseif p > 0.43 then
-            tl.TextColor3 = Color3.fromRGB(255,255,0)
-        elseif p > 0.29 then
-            tl.TextColor3 = Color3.fromRGB(255,130,0)
-        elseif p > 0.14 then
-            tl.TextColor3 = Color3.fromRGB(255,55,0)
-        else
-            tl.TextColor3 = Color3.fromRGB(255,0,0)
-        end
+        update()
+        data.hpConn = humanoid.HealthChanged:Connect(update)
+        data.hpGui = bb
     end
 
-    update()
-    data.hpConn = humanoid.HealthChanged:Connect(update)
-    data.hpGui = bb
-end
+    -- Abilities GUI
+    if showAbilities and isSurvivor and not data.abilityGui then
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "AbilityBillboard"
+        bb.Adornee = rootPart
+        bb.Size = UDim2.fromOffset(120,20)
+        bb.StudsOffset = Vector3.new(0, offsets.abilities, 0)
+        bb.AlwaysOnTop = true
+        bb.Parent = rootPart
 
-	-- ShowAbilities (только Survivors)
-	if showAbilities and folder == SurvivorFolder and not data.abilityGui then
-		local bb = Instance.new("BillboardGui")
-		bb.Name = "AbilityBillboard"
-		bb.Adornee = rootPart
-		bb.Size = UDim2.fromOffset(120,20) -- базовый маленький размер
-		bb.StudsOffset = Vector3.new(0, offsets.abilities, 0)
-		bb.AlwaysOnTop = true
-		bb.Parent = rootPart
+        local tl = Instance.new("TextLabel")
+        tl.Size = UDim2.fromScale(1,1)
+        tl.BackgroundTransparency = 1
+        tl.TextScaled = false
+        tl.TextSize = 10
+        tl.Font = Enum.Font.SourceSansBold
+        tl.TextStrokeTransparency = 0
+        tl.TextColor3 = Color3.fromRGB(255,255,255)
+        tl.Parent = bb
 
-		local tl = Instance.new("TextLabel")
-		tl.Size = UDim2.fromScale(1,1)
-		tl.BackgroundTransparency = 1
-		tl.TextScaled = false
-tl.TextSize = 10  -- или любой размер
-		tl.Font = Enum.Font.SourceSansBold
-		tl.TextStrokeTransparency = 0
-		tl.TextColor3 = Color3.fromRGB(255,255,255)
-		tl.Parent = bb
+        local function updateText()
+            tl.Text = (char:GetAttribute("Ability1") or "")..", "..(char:GetAttribute("Ability2") or "")
+        end
+        updateText()
 
-		local function updateText()
-			tl.Text = (char:GetAttribute("Ability1") or "")..", "..(char:GetAttribute("Ability2") or "")
-		end
-		updateText()
-
-		local conn1 = char:GetAttributeChangedSignal("Ability1"):Connect(updateText)
-		local conn2 = char:GetAttributeChangedSignal("Ability2"):Connect(updateText)
-		data.abilityGui = bb
-abilityConnections[char] = {conn1,conn2}
-abilityBillboards[char] = bb
-	end
+        local conn1 = char:GetAttributeChangedSignal("Ability1"):Connect(updateText)
+        local conn2 = char:GetAttributeChangedSignal("Ability2"):Connect(updateText)
+        data.abilityGui = bb
+        abilityConnections[char] = {conn1,conn2}
+        abilityBillboards[char] = bb
+    end
 end
 
 ------------------------------------------------
--- WATCH FOLDERS
+-- Watch folders (новые модели автоматически)
 ------------------------------------------------
 local function watchFolder(folder)
-	table.insert(folderConnections,
-		folder.ChildAdded:Connect(function(m)
-			task.wait()
-			createESP(m)
-		end)
-	)
+    table.insert(folderConnections,
+        folder.ChildAdded:Connect(function(child)
+            task.wait()
+            createESP(child)
+        end)
+    )
 end
 
 watchFolder(KillerFolder)
 watchFolder(SurvivorFolder)
 watchFolder(OtherFolder)
+
 
 -- HEARTBEAT
 heartbeatConnection = RunService.Heartbeat:Connect(function()
