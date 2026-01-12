@@ -64,9 +64,9 @@ local COLOR_OTHER    = Color3.fromRGB(255,170,0)
 ------------------------------------------------
 local offsets = {
     name = 3,        -- ShowName над головой
-    playerName = 5,  -- ShowPlayerName чуть выше
+    playerName = 4.5,  -- ShowPlayerName чуть выше
     health = 0,      -- Health в центре hrp
-    abilities = 7,    -- Abilities выше всех
+    abilities = 6,    -- Abilities выше всех
 }
 
 ------------------------------------------------
@@ -81,10 +81,11 @@ local function removeFolder(folder)
 			if data.hpGui then data.hpGui:Destroy() end
 			if data.hpConn then data.hpConn:Disconnect() end
 			ESP_OBJECTS[char] = nil
-local body = char:FindFirstChild(BODY_ESP_FOLDER)
-if body then
-    body:Destroy()
-end
+
+			local body = char:FindFirstChild(BODY_ESP_FOLDER)
+			if body then
+				body:Destroy()
+			end
 		end
 	end
 end
@@ -223,7 +224,8 @@ end
 		local tl = Instance.new("TextLabel")
 		tl.Size = UDim2.fromScale(1,1)
 		tl.BackgroundTransparency = 1
-		tl.TextScaled = true
+		tl.TextScaled = false
+tl.TextSize = 10  -- или любой размер
 		tl.Font = Enum.Font.SourceSansBold
 		tl.TextStrokeTransparency = 0
 		tl.TextColor3 = Color3.new(1,1,1)
@@ -254,7 +256,8 @@ end
 			local tl = Instance.new("TextLabel")
 			tl.Size = UDim2.fromScale(1,1)
 			tl.BackgroundTransparency = 1
-			tl.TextScaled = true
+			tl.TextScaled = false
+tl.TextSize = 10  -- или любой размер
 			tl.Font = Enum.Font.SourceSansBold
 			tl.TextStrokeTransparency = 0
 			tl.Parent = bb
@@ -279,7 +282,8 @@ if HEALTH_ENABLED and not data.hpGui and humanoid then
     local tl = Instance.new("TextLabel")
     tl.Size = UDim2.fromScale(1,1)
     tl.BackgroundTransparency = 1
-    tl.TextScaled = true
+    tl.TextScaled = false
+tl.TextSize = 15  -- или любой размер
     tl.Font = Enum.Font.SourceSansBold
     tl.TextStrokeTransparency = 0
     tl.Parent = bb
@@ -331,7 +335,8 @@ end
 		local tl = Instance.new("TextLabel")
 		tl.Size = UDim2.fromScale(1,1)
 		tl.BackgroundTransparency = 1
-		tl.TextScaled = true
+		tl.TextScaled = false
+tl.TextSize = 10  -- или любой размер
 		tl.Font = Enum.Font.SourceSansBold
 		tl.TextStrokeTransparency = 0
 		tl.TextColor3 = Color3.fromRGB(255,255,255)
