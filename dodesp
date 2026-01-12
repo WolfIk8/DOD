@@ -167,28 +167,11 @@ local function getRootPart(model)
 end
 
 ------------------------------------------------
--- CREATE ESP
+-- CREATE/UPDATE ESP
 ------------------------------------------------
-
-
-------------------------------------------------
--- Проверка и создание ESP/GUI для персонажа
-------------------------------------------------
-local function createESP(char)
+local function createOrUpdateESP(char)
     if not char or not char.Parent then return end
     if char == player.Character then return end
-
-    local folder = char.Parent
-    local isKiller = folder == KillerFolder
-    local isSurvivor = folder == SurvivorFolder
-    local isOther = folder == OtherFolder
-
-    -- Проверяем ESP для этой категории
-    if (isKiller and not ESP_KILLERS) or (isSurvivor and not ESP_SURVIVORS) or (isOther and not ESP_OTHERS) then
-        return
-    end
-
-    -- Создаём запись в ESP_OBJECTS
     if not ESP_OBJECTS[char] then ESP_OBJECTS[char] = {} end
     local data = ESP_OBJECTS[char]
 
@@ -196,10 +179,42 @@ local function createESP(char)
     local rootPart = getRootPart(char)
     if not rootPart then return end
 
-    -- BodyESP
-    if ESP_ENABLED and not char:FindFirstChild(BODY_ESP_FOLDER) then
-        local color = isSurvivor and COLOR_SURVIVOR or isKiller and COLOR_KILLER or COLOR_OTHER
-        createBodyESP(char, color)
+    local folder = char.Parent
+    local isKiller = folder == KillerFolder
+    local isSurvivor = folder == SurvivorFolder
+    local isOther = folder == OtherFolder
+
+    -- Проверка включения ESP для конкретной категории
+    local espAllowed = (isKiller and ESP_KILLERS) or (isSurvivor and ESP_SURVIVORS) or (isOther and ESP_OTHERS)
+    if not espAllowed then return end
+
+    -- BoxHandle (BodyESP)
+    if ESP_ENABLED and not data.box then
+        if not char:FindFirstChild(BODY_ESP_FOLDER) then
+            local folderESP = Instance.new("Folder")
+            folderESP.Name = BODY_ESP_FOLDER
+            folderESP.Parent = char
+
+            for _, partName in ipairs(R6_PARTS) do
+                local part = char:FindFirstChild(partName)
+                if part and part:IsA("BasePart") then
+                    local box = Instance.new("BoxHandleAdornment")
+                    box.Name = "ESPBox"
+                    box.Adornee = part
+                    box.Size = part.Size
+                    box.AlwaysOnTop = true
+                    box.ZIndex = 10
+                    box.Transparency = 0.6
+                    box.Color3 = isSurvivor and COLOR_SURVIVOR or isKiller and COLOR_KILLER or COLOR_OTHER
+                    box.Parent = folderESP
+                end
+            end
+
+            data.box = folderESP
+        end
+    elseif data.box and not ESP_ENABLED then
+        data.box:Destroy()
+        data.box = nil
     end
 
     -- Name GUI
@@ -220,17 +235,13 @@ local function createESP(char)
         tl.Font = Enum.Font.SourceSansBold
         tl.TextStrokeTransparency = 0
         tl.TextColor3 = Color3.new(1,1,1)
+        tl.Text = isSurvivor and "Civilian" or isKiller and getKillerName(char) or char.Name
         tl.Parent = bb
 
-        if isSurvivor then
-            tl.Text = "Civilian"
-        elseif isKiller then
-            tl.Text = getKillerName(char)
-        else
-            tl.Text = char.Name
-        end
-
         data.nameGui = bb
+    elseif data.nameGui and not NAME_ENABLED then
+        data.nameGui:Destroy()
+        data.nameGui = nil
     end
 
     -- PlayerName GUI
@@ -251,13 +262,15 @@ local function createESP(char)
             tl.TextSize = 10
             tl.Font = Enum.Font.SourceSansBold
             tl.TextStrokeTransparency = 0
-            tl.Parent = bb
-
             tl.TextColor3 = isSurvivor and COLOR_SURVIVOR or COLOR_KILLER
             tl.Text = char.Name
+            tl.Parent = bb
 
             data.playerNameGui = bb
         end
+    elseif data.playerNameGui and not PLAYERNAME_ENABLED then
+        data.playerNameGui:Destroy()
+        data.playerNameGui = nil
     end
 
     -- Health GUI
@@ -283,11 +296,7 @@ local function createESP(char)
             local maxHealth = humanoid.MaxHealth
             if maxHealth <= 0 then return end
             local p = humanoid.Health / maxHealth
-            if SHOW_CURRENT_HEALTH_ONLY then
-                tl.Text = math.floor(humanoid.Health)
-            else
-                tl.Text = math.floor(humanoid.Health).."/"..math.floor(maxHealth)
-            end
+            tl.Text = SHOW_CURRENT_HEALTH_ONLY and math.floor(humanoid.Health) or math.floor(humanoid.Health).."/"..math.floor(maxHealth)
             if p > 0.86 then
                 tl.TextColor3 = Color3.fromRGB(0,255,0)
             elseif p > 0.72 then
@@ -308,9 +317,14 @@ local function createESP(char)
         update()
         data.hpConn = humanoid.HealthChanged:Connect(update)
         data.hpGui = bb
+    elseif data.hpGui and not HEALTH_ENABLED then
+        if data.hpConn then data.hpConn:Disconnect() end
+        data.hpGui:Destroy()
+        data.hpGui = nil
+        data.hpConn = nil
     end
 
-    -- Abilities GUI
+    -- Abilities GUI (только Survivor)
     if showAbilities and isSurvivor and not data.abilityGui then
         local bb = Instance.new("BillboardGui")
         bb.Name = "AbilityBillboard"
@@ -338,8 +352,16 @@ local function createESP(char)
         local conn1 = char:GetAttributeChangedSignal("Ability1"):Connect(updateText)
         local conn2 = char:GetAttributeChangedSignal("Ability2"):Connect(updateText)
         data.abilityGui = bb
-        abilityConnections[char] = {conn1,conn2}
+        abilityConnections[char] = {conn1, conn2}
         abilityBillboards[char] = bb
+    elseif data.abilityGui and not showAbilities then
+        data.abilityGui:Destroy()
+        data.abilityGui = nil
+        if abilityConnections[char] then
+            for _, c in pairs(abilityConnections[char]) do c:Disconnect() end
+            abilityConnections[char] = nil
+        end
+        abilityBillboards[char] = nil
     end
 end
 
