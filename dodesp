@@ -186,20 +186,8 @@ if not rootPart then return end
 	if folder == SurvivorFolder and not ESP_SURVIVORS then return end
 	if folder == OtherFolder and not ESP_OTHERS then return end
 
--- Определяем цвет для BodyESP
-local bodyColor
-if folder == SurvivorFolder then
-    bodyColor = COLOR_SURVIVOR
-elseif folder == KillerFolder then
-    bodyColor = COLOR_KILLER
-else
-    bodyColor = COLOR_OTHER
-end
-
--- Создаём BodyESP
-createBodyESP(char, bodyColor)
-
-	local function createBodyESP(char, color)
+-- CREATE BODY ESP
+local function createBodyESP(char, color)
     if char:FindFirstChild(BODY_ESP_FOLDER) then return end
 
     local folder = Instance.new("Folder")
@@ -223,6 +211,19 @@ createBodyESP(char, bodyColor)
 
     return folder
 end
+
+-- Определяем цвет для BodyESP
+local bodyColor
+if folder == SurvivorFolder then
+    bodyColor = COLOR_SURVIVOR
+elseif folder == KillerFolder then
+    bodyColor = COLOR_KILLER
+else
+    bodyColor = COLOR_OTHER
+end
+
+-- Создаём BodyESP
+createBodyESP(char, bodyColor)
 
 	-- ShowName
 	if NAME_ENABLED and not data.nameGui then
