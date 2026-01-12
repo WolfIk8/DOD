@@ -374,12 +374,17 @@ watchFolder(OtherFolder)
 ------------------------------------------------
 -- HEARTBEAT 
 ------------------------------------------------
+------------------------------------------------
+-- HEARTBEAT 
+------------------------------------------------
 heartbeatConnection = RunService.Heartbeat:Connect(function()
     for char, data in pairs(ESP_OBJECTS) do
-        if not char.Parent then
+        if char.Parent then
+        else
             ESP_OBJECTS[char] = nil
-            continue
         end
+    end
+end)
 
 ------------------------------------------------
 -- Panel GUI
