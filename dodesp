@@ -371,20 +371,16 @@ watchFolder(KillerFolder)
 watchFolder(SurvivorFolder)
 watchFolder(OtherFolder)
 
-------------------------------------------------
--- HEARTBEAT 
-------------------------------------------------
-------------------------------------------------
--- HEARTBEAT 
-------------------------------------------------
+-- HEARTBEAT
 heartbeatConnection = RunService.Heartbeat:Connect(function()
     for char, data in pairs(ESP_OBJECTS) do
         if char.Parent then
+            -- Здесь можно обновлять ESP если нужно
         else
             ESP_OBJECTS[char] = nil
         end
     end
-end)
+end)  -- <-- ЗАКРЫВАЕМ функцию
 
 ------------------------------------------------
 -- Panel GUI
