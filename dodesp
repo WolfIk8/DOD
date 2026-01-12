@@ -475,7 +475,7 @@ createToggleButton("ESP", leftX, currentY, function()
     if ESP_ENABLED then
         for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
             for _, obj in ipairs(folder:GetChildren()) do
-                createESP(obj)
+                createOrUpdateESP(obj)
             end
         end
     else
@@ -496,7 +496,7 @@ createToggleButton("ShowName", leftX, currentY, function()
         for _, char in ipairs(folder:GetChildren()) do
             local data = ESP_OBJECTS[char] or {}
             if NAME_ENABLED then
-                createESP(char)
+                createOrUpdateESP(char)
             else
                 if data.nameGui then
                     data.nameGui:Destroy()
@@ -518,7 +518,7 @@ createToggleButton("ShowPlayerName", leftX, currentY, function()
         for _, char in ipairs(folder:GetChildren()) do
             local data = ESP_OBJECTS[char] or {}
             if PLAYERNAME_ENABLED then
-                createESP(char)
+                createOrUpdateESP(char)
             else
                 if data.playerNameGui then
                     data.playerNameGui:Destroy()
@@ -540,7 +540,7 @@ createToggleButton("ShowHealth", leftX, currentY, function()
         for _, char in ipairs(folder:GetChildren()) do
             local data = ESP_OBJECTS[char] or {}
             if HEALTH_ENABLED then
-                createESP(char)
+                createOrUpdateESP(char)
             else
                 if data.hpGui then
                     data.hpGui:Destroy()
