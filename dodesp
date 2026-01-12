@@ -40,10 +40,24 @@ local abilityFolderConn
 ------------------------------------------------
 -- Constants
 ------------------------------------------------
-local HIGHLIGHT_NAME = "Highlight703881"
 local BILLBOARD_NAME_NAME = "Name703881"
 local BILLBOARD_NAME_PLAYERNAME = "PlayerName703881"
 local BILLBOARD_NAME_HP = "Health703881"
+
+local BODY_ESP_FOLDER = "BodyESP703881"
+
+local R6_PARTS = {
+    "Head",
+    "Torso",
+    "Left Arm",
+    "Right Arm",
+    "Left Leg",
+    "Right Leg"
+}
+
+local COLOR_SURVIVOR = Color3.fromRGB(0,255,0)
+local COLOR_KILLER   = Color3.fromRGB(255,0,0)
+local COLOR_OTHER    = Color3.fromRGB(255,170,0)
 
 ------------------------------------------------
 -- Offsets
@@ -67,14 +81,21 @@ local function removeFolder(folder)
 			if data.hpGui then data.hpGui:Destroy() end
 			if data.hpConn then data.hpConn:Disconnect() end
 			ESP_OBJECTS[char] = nil
+local body = char:FindFirstChild(BODY_ESP_FOLDER)
+if body then
+    body:Destroy()
+end
 		end
 	end
 end
 
-local function removeHighlight(folder)
-    for char, data in pairs(ESP_OBJECTS) do
-        if char.Parent == folder and data.highlight then
-            data.highlight.Enabled = false
+local function removeBodyESP(folder)
+    for char in pairs(ESP_OBJECTS) do
+        if char.Parent == folder then
+            local f = char:FindFirstChild(BODY_ESP_FOLDER)
+            if f then
+                f:Destroy()
+            end
         end
     end
 end
@@ -164,23 +185,30 @@ if not rootPart then return end
 	if folder == SurvivorFolder and not ESP_SURVIVORS then return end
 	if folder == OtherFolder and not ESP_OTHERS then return end
 
-	-- Highlight
-	if ESP_ENABLED and not data.highlight then
-		local h = Instance.new("Highlight")
-		h.Name = HIGHLIGHT_NAME
-		h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-		h.FillTransparency = 0.7
-		h.OutlineColor = Color3.new(1,1,1)
-		if folder == KillerFolder then
-			h.FillColor = Color3.fromRGB(255,0,0)
-		elseif folder == SurvivorFolder then
-			h.FillColor = Color3.fromRGB(0,255,0)
-		else
-			h.FillColor = Color3.fromRGB(255,170,0)
-		end
-		h.Parent = char
-		data.highlight = h
-	end
+	local function createBodyESP(char, color)
+    if char:FindFirstChild(BODY_ESP_FOLDER) then return end
+
+    local folder = Instance.new("Folder")
+    folder.Name = BODY_ESP_FOLDER
+    folder.Parent = char
+
+    for _, partName in ipairs(R6_PARTS) do
+        local part = char:FindFirstChild(partName)
+        if part and part:IsA("BasePart") then
+            local box = Instance.new("BoxHandleAdornment")
+            box.Name = "ESPBox"
+            box.Adornee = part
+            box.Size = part.Size
+            box.AlwaysOnTop = true
+            box.ZIndex = 10
+            box.Transparency = 0.6
+            box.Color3 = color
+            box.Parent = folder
+        end
+    end
+
+    return folder
+end
 
 	-- ShowName
 	if NAME_ENABLED and not data.nameGui then
@@ -339,7 +367,7 @@ watchFolder(SurvivorFolder)
 watchFolder(OtherFolder)
 
 ------------------------------------------------
--- HEARTBEAT (масштабирование по расстоянию)
+-- HEARTBEAT 
 ------------------------------------------------
 heartbeatConnection = RunService.Heartbeat:Connect(function()
     for char, data in pairs(ESP_OBJECTS) do
@@ -347,52 +375,6 @@ heartbeatConnection = RunService.Heartbeat:Connect(function()
             ESP_OBJECTS[char] = nil
             continue
         end
-
-        local rootPart = getRootPart(char)
-        if rootPart then
-            local d = (camera.CFrame.Position - rootPart.Position).Magnitude
-            local s = math.clamp(20 / d, 0.45, 0.9)
-
-            if data.nameGui then
-                data.nameGui.Size = UDim2.fromOffset(130 * s, 30 * s)
-            end
-            if data.hpGui then
-                data.hpGui.Size = UDim2.fromOffset(130 * s, 30 * s)
-            end
-            if data.playerNameGui then
-                data.playerNameGui.Size = UDim2.fromOffset(130 * s, 30 * s)
-            end
-        end
-
-        -- прозрачность частей
-        if ESP_ENABLED then
-            for _, n in ipairs({"Head","Torso","Left Arm","Right Arm","Left Leg","Right Leg"}) do
-                local p = char:FindFirstChild(n)
-                if p and p:IsA("BasePart") and p.Transparency >= 1 then
-                    p.Transparency = 0.99
-                end
-            end
-        end
-
-        -- удаление чужих Highlight ТОЛЬКО если наш включён
-        if ESP_ENABLED and data.highlight then
-            for _, ch in ipairs(char:GetChildren()) do
-                if ch:IsA("Highlight") and ch ~= data.highlight then
-                    ch:Destroy()
-                end
-            end
-        end
-    end
-
-    -- масштабирование ShowAbilities
-    for survivor, bb in pairs(abilityBillboards) do
-        if survivor.Parent and bb.Adornee then
-            local d = (camera.CFrame.Position - bb.Adornee.Position).Magnitude
-            local s = math.clamp(20 / d, 0.45, 0.9)
-            bb.Size = UDim2.fromOffset(120 * s, 22 * s)
-        end
-    end
-end)
 
 ------------------------------------------------
 -- Panel GUI
@@ -470,7 +452,7 @@ local leftX, rightX = 20, 220
 local currentY = BUTTON_OFFSET_TOP
 
 -- Левые кнопки
-createToggleButton("Highlight", leftX, currentY, function()
+createToggleButton("ESP", leftX, currentY, function()
     ESP_ENABLED = not ESP_ENABLED
 
     if ESP_ENABLED then
@@ -480,9 +462,9 @@ createToggleButton("Highlight", leftX, currentY, function()
             end
         end
     else
-        removeHighlight(KillerFolder)
-        removeHighlight(SurvivorFolder)
-        removeHighlight(OtherFolder)
+        removeBodyESP(KillerFolder)
+removeBodyESP(SurvivorFolder)
+removeBodyESP(OtherFolder)
     end
 
     return ESP_ENABLED
