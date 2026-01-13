@@ -471,19 +471,6 @@ local currentY = BUTTON_OFFSET_TOP
 -- Левые кнопки
 createToggleButton("ESP", leftX, currentY, function()
     ESP_ENABLED = not ESP_ENABLED
-
-    if ESP_ENABLED then
-        for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
-            for _, obj in ipairs(folder:GetChildren()) do
-                createOrUpdateESP(obj)
-            end
-        end
-    else
-        removeBodyESP(KillerFolder)
-removeBodyESP(SurvivorFolder)
-removeBodyESP(OtherFolder)
-    end
-
     return ESP_ENABLED
 end)
 currentY = currentY + 30 + BUTTON_SPACING
@@ -491,21 +478,6 @@ currentY = currentY + 30 + BUTTON_SPACING
 -- ShowName
 createToggleButton("ShowName", leftX, currentY, function()
     NAME_ENABLED = not NAME_ENABLED
-
-    for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
-        for _, char in ipairs(folder:GetChildren()) do
-            local data = ESP_OBJECTS[char] or {}
-            if NAME_ENABLED then
-                createOrUpdateESP(char)
-            else
-                if data.nameGui then
-                    data.nameGui:Destroy()
-                    data.nameGui = nil
-                end
-            end
-        end
-    end
-
     return NAME_ENABLED
 end)
 currentY = currentY + 30 + BUTTON_SPACING
@@ -513,21 +485,6 @@ currentY = currentY + 30 + BUTTON_SPACING
 -- ShowPlayerName
 createToggleButton("ShowPlayerName", leftX, currentY, function()
     PLAYERNAME_ENABLED = not PLAYERNAME_ENABLED
-
-    for _, folder in ipairs({KillerFolder, SurvivorFolder}) do
-        for _, char in ipairs(folder:GetChildren()) do
-            local data = ESP_OBJECTS[char] or {}
-            if PLAYERNAME_ENABLED then
-                createOrUpdateESP(char)
-            else
-                if data.playerNameGui then
-                    data.playerNameGui:Destroy()
-                    data.playerNameGui = nil
-                end
-            end
-        end
-    end
-
     return PLAYERNAME_ENABLED
 end)
 currentY = currentY + 30 + BUTTON_SPACING
@@ -535,40 +492,12 @@ currentY = currentY + 30 + BUTTON_SPACING
 -- ShowHealth
 createToggleButton("ShowHealth", leftX, currentY, function()
     HEALTH_ENABLED = not HEALTH_ENABLED
-
-    for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
-        for _, char in ipairs(folder:GetChildren()) do
-            local data = ESP_OBJECTS[char] or {}
-            if HEALTH_ENABLED then
-                createOrUpdateESP(char)
-            else
-                if data.hpGui then
-                    data.hpGui:Destroy()
-                    data.hpGui = nil
-                end
-                if data.hpConn then
-                    data.hpConn:Disconnect()
-                    data.hpConn = nil
-                end
-            end
-        end
-    end
-
     return HEALTH_ENABLED
 end)
 currentY = currentY + 30 + BUTTON_SPACING
 
 createToggleButton("ShowAbilities", leftX, currentY, function()
     showAbilities = not showAbilities
-
-    if showAbilities then
-        for _, survivor in ipairs(SurvivorFolder:GetChildren()) do
-            createESP(survivor)
-        end
-    else
-        removeAbilities()
-    end
-
     return showAbilities
 end)
 
@@ -576,21 +505,18 @@ end)
 currentY = BUTTON_OFFSET_TOP
 createToggleButton("ESP Killers", rightX, currentY, function()
     ESP_KILLERS = not ESP_KILLERS
-    if not ESP_KILLERS then removeFolder(KillerFolder) end
     return ESP_KILLERS
 end)
 currentY = currentY + 30 + BUTTON_SPACING
 
 createToggleButton("ESP Survivors", rightX, currentY, function()
     ESP_SURVIVORS = not ESP_SURVIVORS
-    if not ESP_SURVIVORS then removeFolder(SurvivorFolder) end
     return ESP_SURVIVORS
 end)
 currentY = currentY + 30 + BUTTON_SPACING
 
 createToggleButton("ESP Others", rightX, currentY, function()
     ESP_OTHERS = not ESP_OTHERS
-    if not ESP_OTHERS then removeFolder(OtherFolder) end
     return ESP_OTHERS
 end)
 
@@ -598,18 +524,6 @@ currentY = currentY + 30 + BUTTON_SPACING
 
 createToggleButton("Show Current Health", rightX, currentY, function()
     SHOW_CURRENT_HEALTH_ONLY = not SHOW_CURRENT_HEALTH_ONLY
-
-    -- принудительно обновляем все health GUI
-    for char, data in pairs(ESP_OBJECTS) do
-        if data.hpGui then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                -- просто вызываем обновление
-                humanoid.Health = humanoid.Health
-            end
-        end
-    end
-
     return SHOW_CURRENT_HEALTH_ONLY
 end)
 
