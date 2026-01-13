@@ -63,8 +63,8 @@ local COLOR_OTHER    = Color3.fromRGB(255,170,0)
 -- Offsets
 ------------------------------------------------
 local offsets = {
-    name = 3,        -- ShowName над головой
-    playerName = 4.5,  -- ShowPlayerName чуть выше
+    name = 4.5,        -- ShowName над головой
+    playerName = 3,  -- ShowPlayerName чуть выше
     health = 0,      -- Health в центре hrp
     abilities = 6,    -- Abilities выше всех
 }
@@ -209,7 +209,8 @@ if ESP_ENABLED and not data.box then
             box.Size = part.Size
             box.AlwaysOnTop = true
             box.ZIndex = 10
-            box.Transparency = 0.6
+            box.Transparency = if ESP_TRANSPARENCY then
+    box.Transparency = ESP_TRANSPARENCY
             box.Color3 = isSurvivor and COLOR_SURVIVOR or isKiller and COLOR_KILLER or COLOR_OTHER
             box.Parent = folderESP
         end
@@ -235,7 +236,7 @@ end
         tl.Size = UDim2.fromScale(1,1)
         tl.BackgroundTransparency = 1
         tl.TextScaled = false
-        tl.TextSize = 10
+        tl.TextSize = 12
         tl.Font = Enum.Font.SourceSansBold
         tl.TextStrokeTransparency = 0
         tl.TextColor3 = Color3.new(1,1,1)
@@ -263,7 +264,7 @@ end
             tl.Size = UDim2.fromScale(1,1)
             tl.BackgroundTransparency = 1
             tl.TextScaled = false
-            tl.TextSize = 10
+            tl.TextSize = 12
             tl.Font = Enum.Font.SourceSansBold
             tl.TextStrokeTransparency = 0
             tl.TextColor3 = isSurvivor and COLOR_SURVIVOR or COLOR_KILLER
@@ -342,7 +343,7 @@ end
         tl.Size = UDim2.fromScale(1,1)
         tl.BackgroundTransparency = 1
         tl.TextScaled = false
-        tl.TextSize = 10
+        tl.TextSize = 12
         tl.Font = Enum.Font.SourceSansBold
         tl.TextStrokeTransparency = 0
         tl.TextColor3 = Color3.fromRGB(255,255,255)
@@ -549,6 +550,42 @@ currentY = currentY + 30 + BUTTON_SPACING
 createToggleButton("Show Current Health", rightX, currentY, function()
     SHOW_CURRENT_HEALTH_ONLY = not SHOW_CURRENT_HEALTH_ONLY
     return SHOW_CURRENT_HEALTH_ONLY
+end)
+
+currentY = currentY + 30 + BUTTON_SPACING
+
+-- ESP Transparency TextBox
+local transparencyTextBox = Instance.new("TextBox")
+transparencyTextBox.Size = UDim2.fromOffset(180,30)
+transparencyTextBox.Position = UDim2.fromOffset(rightX, currentY)
+transparencyTextBox.Text = ""  -- абсолютно пусто
+transparencyTextBox.PlaceholderText = "ESP transparency (in %)"
+transparencyTextBox.TextColor3 = Color3.fromRGB(255,255,255)
+transparencyTextBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+transparencyTextBox.Font = Enum.Font.SourceSansBold
+transparencyTextBox.TextScaled = true
+transparencyTextBox.Parent = body
+
+transparencyTextBox.FocusLost:Connect(function(enterPressed)
+    local value = tonumber(transparencyTextBox.Text)
+    if value then
+        value = math.clamp(value, 0, 100)
+        ESP_TRANSPARENCY = value / 100
+    else
+        transparencyTextBox.Text = ""
+        ESP_TRANSPARENCY = nil
+    end
+
+    -- Обновляем все существующие BoxHandle
+    for _, data in pairs(ESP_OBJECTS) do
+        if data.box then
+            for _, box in pairs(data.box:GetChildren()) do
+                if box:IsA("BoxHandleAdornment") and ESP_TRANSPARENCY then
+                    box.Transparency = ESP_TRANSPARENCY
+                end
+            end
+        end
+    end
 end)
 
 ------------------------------------------------
