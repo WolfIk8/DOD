@@ -209,8 +209,9 @@ if ESP_ENABLED and not data.box then
             box.Size = part.Size
             box.AlwaysOnTop = true
             box.ZIndex = 10
-            box.Transparency = if ESP_TRANSPARENCY then
-    box.Transparency = ESP_TRANSPARENCY
+            if ESP_TRANSPARENCY then
+        box.Transparency = ESP_TRANSPARENCY
+    end
             box.Color3 = isSurvivor and COLOR_SURVIVOR or isKiller and COLOR_KILLER or COLOR_OTHER
             box.Parent = folderESP
         end
