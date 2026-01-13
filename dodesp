@@ -177,33 +177,49 @@ local function createOrUpdateESP(char)
     if not espAllowed then return end
 
     -- BoxHandle (BodyESP)
-    if ESP_ENABLED and not data.box then
-        if not char:FindFirstChild(BODY_ESP_FOLDER) then
-            local folderESP = Instance.new("Folder")
-            folderESP.Name = BODY_ESP_FOLDER
-            folderESP.Parent = char
+if ESP_ENABLED and not data.box then
+    if not char:FindFirstChild(BODY_ESP_FOLDER) then
+        local folderESP = Instance.new("Folder")
+        folderESP.Name = BODY_ESP_FOLDER
+        folderESP.Parent = char
 
-            for _, partName in ipairs(R6_PARTS) do
-                local part = char:FindFirstChild(partName)
-                if part and part:IsA("BasePart") then
-                    local box = Instance.new("BoxHandleAdornment")
-                    box.Name = "ESPBox"
-                    box.Adornee = part
-                    box.Size = part.Size
-                    box.AlwaysOnTop = true
-                    box.ZIndex = 10
-                    box.Transparency = 0.6
-                    box.Color3 = isSurvivor and COLOR_SURVIVOR or isKiller and COLOR_KILLER or COLOR_OTHER
-                    box.Parent = folderESP
-                end
+        local parts = {}
+
+        -- Сначала ищем стандартные R6 части
+        for _, partName in ipairs(R6_PARTS) do
+            local part = char:FindFirstChild(partName)
+            if part and part:IsA("BasePart") then
+                table.insert(parts, part)
             end
-
-            data.box = folderESP
         end
-    elseif data.box and not ESP_ENABLED then
-        data.box:Destroy()
-        data.box = nil
+
+        -- Если R6 частей нет, ищем root part
+        if #parts == 0 then
+            local root = getRootPart(char)
+            if root then
+                table.insert(parts, root)
+            end
+        end
+
+        -- Создаём BoxHandleAdornment для всех найденных частей
+        for _, part in ipairs(parts) do
+            local box = Instance.new("BoxHandleAdornment")
+            box.Name = "ESPBox"
+            box.Adornee = part
+            box.Size = part.Size
+            box.AlwaysOnTop = true
+            box.ZIndex = 10
+            box.Transparency = 0.6
+            box.Color3 = isSurvivor and COLOR_SURVIVOR or isKiller and COLOR_KILLER or COLOR_OTHER
+            box.Parent = folderESP
+        end
+
+        data.box = folderESP
     end
+elseif data.box and not ESP_ENABLED then
+    data.box:Destroy()
+    data.box = nil
+end
 
     -- Name GUI
     if NAME_ENABLED and not data.nameGui then
