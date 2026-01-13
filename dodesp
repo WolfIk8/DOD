@@ -371,27 +371,43 @@ end
 local function watchFolder(folder)
     table.insert(folderConnections,
         folder.ChildAdded:Connect(function(child)
-            task.wait()
-            createESP(child)
+            ESP_OBJECTS[child] = ESP_OBJECTS[child] or {}
         end)
     )
 end
 
-watchFolder(KillerFolder)
-watchFolder(SurvivorFolder)
-watchFolder(OtherFolder)
+------------------------------------------------
+local function updateCharacterESP(char)
+    if not char or not char.Parent then return end
+    if char == player.Character then return end
 
+    local folder = char.Parent
+    local isKiller = folder == KillerFolder
+    local isSurvivor = folder == SurvivorFolder
+    local isOther = folder == OtherFolder
+
+    local categoryEnabled =
+        (isKiller and ESP_KILLERS) or
+        (isSurvivor and ESP_SURVIVORS) or
+        (isOther and ESP_OTHERS)
+
+    if not categoryEnabled then
+        removeFolder(folder)
+        return
+    end
+
+    createOrUpdateESP(char)
+end
+------------------------------------------------
 
 -- HEARTBEAT
 heartbeatConnection = RunService.Heartbeat:Connect(function()
-    for char, data in pairs(ESP_OBJECTS) do
-        if char.Parent then
-            -- Здесь можно обновлять ESP если нужно
-        else
-            ESP_OBJECTS[char] = nil
+    for _, folder in ipairs({KillerFolder, SurvivorFolder, OtherFolder}) do
+        for _, char in ipairs(folder:GetChildren()) do
+            updateCharacterESP(char)
         end
     end
-end)  -- <-- ЗАКРЫВАЕМ функцию
+end)
 
 ------------------------------------------------
 -- Panel GUI
