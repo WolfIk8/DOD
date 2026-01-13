@@ -70,35 +70,23 @@ local offsets = {
 }
 
 ------------------------------------------------
--- REMOVE FOLDER
+-- REMOVE CHARACTER ESP (NEW)
 ------------------------------------------------
-local function removeFolder(folder)
-	for char, data in pairs(ESP_OBJECTS) do
-		if char.Parent == folder then
-			if data.highlight then data.highlight:Destroy() end
-			if data.nameGui then data.nameGui:Destroy() end
-			if data.playerNameGui then data.playerNameGui:Destroy() end
-			if data.hpGui then data.hpGui:Destroy() end
-			if data.hpConn then data.hpConn:Disconnect() end
-			ESP_OBJECTS[char] = nil
+local function removeCharacterESP(char)
+    local data = ESP_OBJECTS[char]
+    if not data then return end
 
-			local body = char:FindFirstChild(BODY_ESP_FOLDER)
-			if body then
-				body:Destroy()
-			end
-		end
-	end
-end
+    if data.box then data.box:Destroy() end
+    if data.nameGui then data.nameGui:Destroy() end
+    if data.playerNameGui then data.playerNameGui:Destroy() end
+    if data.hpGui then data.hpGui:Destroy() end
+    if data.hpConn then data.hpConn:Disconnect() end
+    if data.abilityGui then data.abilityGui:Destroy() end
 
-local function removeBodyESP(folder)
-    for char in pairs(ESP_OBJECTS) do
-        if char.Parent == folder then
-            local f = char:FindFirstChild(BODY_ESP_FOLDER)
-            if f then
-                f:Destroy()
-            end
-        end
-    end
+    local body = char:FindFirstChild(BODY_ESP_FOLDER)
+    if body then body:Destroy() end
+
+    ESP_OBJECTS[char] = nil
 end
 
 ------------------------------------------------
@@ -376,6 +364,10 @@ local function watchFolder(folder)
     )
 end
 
+watchFolder(KillerFolder)
+watchFolder(SurvivorFolder)
+watchFolder(OtherFolder)
+
 ------------------------------------------------
 local function updateCharacterESP(char)
     if not char or not char.Parent then return end
@@ -391,10 +383,10 @@ local function updateCharacterESP(char)
         (isSurvivor and ESP_SURVIVORS) or
         (isOther and ESP_OTHERS)
 
-    if not categoryEnabled then
-        removeFolder(folder)
-        return
-    end
+if not categoryEnabled then
+    removeCharacterESP(char)
+    return
+end
 
     createOrUpdateESP(char)
 end
