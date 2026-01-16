@@ -299,26 +299,27 @@ end
         tl.Parent = bb
 
         local function update()
-            local maxHealth = humanoid.MaxHealth
-            if maxHealth <= 0 then return end
-            local p = humanoid.Health / maxHealth
-            tl.Text = SHOW_CURRENT_HEALTH_ONLY and math.floor(humanoid.Health) or math.floor(humanoid.Health).."/"..math.floor(maxHealth)
-            if p > 0.86 then
-                tl.TextColor3 = Color3.fromRGB(0,255,0)
-            elseif p > 0.72 then
-                tl.TextColor3 = Color3.fromRGB(145,255,0)
-            elseif p > 0.58 then
-                tl.TextColor3 = Color3.fromRGB(200,255,0)
-            elseif p > 0.43 then
-                tl.TextColor3 = Color3.fromRGB(255,255,0)
-            elseif p > 0.29 then
-                tl.TextColor3 = Color3.fromRGB(255,130,0)
-            elseif p > 0.14 then
-                tl.TextColor3 = Color3.fromRGB(255,55,0)
-            else
-                tl.TextColor3 = Color3.fromRGB(255,0,0)
-            end
-        end
+    local maxHealth = humanoid.MaxHealth
+    if maxHealth <= 0 then return end
+
+    local p = humanoid.Health / maxHealth
+
+    tl.Text = SHOW_CURRENT_HEALTH_ONLY
+        and math.floor(humanoid.Health)
+        or math.floor(humanoid.Health).."/"..math.floor(maxHealth)
+
+    if p > 0.8 then
+        tl.TextColor3 = Color3.fromRGB(0,255,0)
+    elseif p > 0.6 then
+        tl.TextColor3 = Color3.fromRGB(180,255,0)
+    elseif p > 0.4 then
+        tl.TextColor3 = Color3.fromRGB(255,255,0)
+    elseif p > 0.2 then
+        tl.TextColor3 = Color3.fromRGB(255,140,0)
+    else
+        tl.TextColor3 = Color3.fromRGB(255,0,0)
+    end
+end
 
         update()
         data.hpConn = humanoid.HealthChanged:Connect(update)
