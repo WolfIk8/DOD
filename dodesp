@@ -176,32 +176,38 @@ local function createOrUpdateESP(char)
     local espAllowed = (isKiller and ESP_KILLERS) or (isSurvivor and ESP_SURVIVORS) or (isOther and ESP_OTHERS)
     if not espAllowed then return end
 
-    -- BoxHandle (BodyESP)
-if ESP_ENABLED and not data.box then
+    if ESP_ENABLED and not data.box then
     if not char:FindFirstChild(BODY_ESP_FOLDER) then
         local folderESP = Instance.new("Folder")
         folderESP.Name = BODY_ESP_FOLDER
         folderESP.Parent = char
 
         local parts = {}
+        local startTime = os.clock()
 
-        -- Сначала ищем стандартные R6 части
-        for _, partName in ipairs(R6_PARTS) do
-            local part = char:FindFirstChild(partName)
-            if part and part:IsA("BasePart") then
-                table.insert(parts, part)
+        repeat
+            parts = {}
+            for _, partName in ipairs(R6_PARTS) do
+                local part = char:FindFirstChild(partName)
+                if part and part:IsA("BasePart") then
+                    table.insert(parts, part)
+                end
             end
-        end
 
-        -- Если R6 частей нет, ищем root part
+            if #parts > 0 then
+                break
+            end
+
+            task.wait(0.05)
+        until os.clock() - startTime >= 0.5
+
         if #parts == 0 then
             local root = getRootPart(char)
             if root then
-                table.insert(parts, root)
+                parts = { root }
             end
         end
 
-        -- Создаём BoxHandleAdornment для всех найденных частей
         for _, part in ipairs(parts) do
             local box = Instance.new("BoxHandleAdornment")
             box.Name = "ESPBox"
@@ -210,8 +216,8 @@ if ESP_ENABLED and not data.box then
             box.AlwaysOnTop = true
             box.ZIndex = 10
             if ESP_TRANSPARENCY then
-        box.Transparency = ESP_TRANSPARENCY
-    end
+                box.Transparency = ESP_TRANSPARENCY
+            end
             box.Color3 = isSurvivor and COLOR_SURVIVOR or isKiller and COLOR_KILLER or COLOR_OTHER
             box.Parent = folderESP
         end
